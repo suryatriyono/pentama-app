@@ -25,14 +25,38 @@ const login = async (req, res) => {
     const refreshToken = generateRefreshToken(user);
 
     // Set the refresh token in HttpOnly cookie
-    res.cookie('refreshToken', refreshToken, {
-      httOnly: true,
-      self: true, // Set to true in production with HTTPS
-      sameSite: 'Strict',
-      maxAge: 7 * 24 * 60 * 100, // 7 days
-    });
+    res
+      .cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        // self: true, // Set to true in production with HTTPS
+        secure: process.env.NODE_ENV === 'production', // Aktifkan secure hanya di production dengan HTTPS
+        sameSite: 'Strict',
+        maxAge: 7 * 24 * 60 * 1000, // 7 days
+      })
+      .cookie('isAuthenticated', true, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production', // Aktifkan secure hanya di production dengan HTTPS
+        sameSite: 'Strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 hari
+      })
+      .cookie('role', user.role, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production', // Aktifkan secure hanya di production dengan HTTPS
+        sameSite: 'Strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 hari
+      });
 
-    return successResponse(res, 'User logged in successfully', { accessToken });
+    console.log('login:', req.cookies);
+
+    return successResponse(res, 'Login Successful', {
+      accessToken,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
   } catch (error) {
     return errorResponse(res, 'Authentication failed', 500, error);
   }
@@ -62,13 +86,16 @@ const register = async (req, res) => {
   }
 };
 
-const refresh = (req, res) => {
+const refreshToken = (req, res) => {
   const refreshToken = req.cookies.refreshToken;
+  console.log('refresh token:', req.cookies);
   if (!refreshToken)
     return errorResponse(res, 'No refresh token provided', 403);
 
   jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, (err, user) => {
-    if (err) return errorResponse(res, 'Invalid refresh token', 403);
+    if (err) {
+      return errorResponse(res, 'Invalid refresh token', 403);
+    }
 
     const newAccessToken = generateAccessToken(user);
     return successResponse(res, 'Token refreshed successfully', {
@@ -77,9 +104,27 @@ const refresh = (req, res) => {
   });
 };
 
-const logout = (req, res) => {
+const checkAuthenticated = (req, res) => {
+  const isAuthenticated = req.cookies.isAuthenticated;
+  const role = req.cookies.role;
+
+  console.log('check:', req.cookies);
+
+  if (isAuthenticated) {
+    return successResponse(res, 'User is authenticated', {
+      isAuthenticated,
+      role,
+    });
+  } else {
+    return errorResponse(res, 'User is not authenticated', 401);
+  }
+};
+
+const logout = (_, res) => {
   res.clearCookie('refreshToken');
+  res.clearCookie('role');
+  res.clearCookie('isAuthenticated');
   return successResponse(res, 'User logged out successfully');
 };
 
-module.exports = { login, register, refresh, logout };
+module.exports = { login, register, refreshToken, checkAuthenticated, logout };

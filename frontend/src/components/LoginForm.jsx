@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PiStudentDuotone } from 'react-icons/pi';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -9,65 +9,63 @@ import FormContainer from './common/FormContainer';
 import InputField from './common/InputField';
 import InputPassword from './common/InputPassword';
 
-const LoginForm = ({ isLoginPage }) => {
+const LoginForm = ({ isLoginPage, setLoginPage }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorFields, setErrorFields] = useState({
     email: null,
     password: null,
   });
-  // Reference to email and password fields
+
   const emailRef = useRef(null);
   const passwordRef = useRef(null);
   const dispatch = useDispatch();
-
   const navigate = useNavigate();
-  const { isAuthenticated, user, error } = useSelector((state) => state.auth);
+  const { isAuthenticated, error, loading, role } = useSelector(
+    (state) => state.auth
+  ); // pastikan loading ditarik dari state
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setErrorFields({ email: null, password: null }); // reset errors state
+    if (loading) return; // Menghindari input jika loading sedang aktif
+    setErrorFields({ email: null, password: null }); // reset error state
     dispatch(login({ email, password }));
   };
 
-  // Handle when login process is fullfilled
   useEffect(() => {
-    if (isAuthenticated && user) {
-      navigate(`/${user.role}/dashboard`);
+    if (isAuthenticated && role) {
+      navigate(`/${role}/dashboard`);
     }
-  }, [isAuthenticated, user]);
-  // Handle when a login promise is rejected
+  }, [isAuthenticated, role, navigate]);
+
   useEffect(() => {
     if (error) {
-      console.log(error);
       const updatedErrorFields = { email: null, password: null };
-      if (error.data.errors && Array.isArray(error.data.errors)) {
-        error.data.errors.forEach((err) => {
-          if (err.field === 'email' && !updatedErrorFields.email) {
-            updatedErrorFields.email = err.message;
-          } else if (err.field === 'password' && !updatedErrorFields.password) {
+      // Memeriksa apakah error ada dan tidak null
+      if (error.response.errors && Array.isArray(error.response.errors)) {
+        error.response.errors.forEach((err) => {
+          if (err.field === 'email') updatedErrorFields.email = err.message;
+          if (err.field === 'password')
             updatedErrorFields.password = err.message;
+        });
+      } else if ([404, 400].includes(error.status)) {
+        Swal.fire({
+          title: error.response.message,
+          icon: 'error',
+        }).then((result) => {
+          if (error.status === 404) {
+            if (result.isConfirmed) {
+              setLoginPage();
+            }
           }
-          setErrorFields((prev) => ({ ...prev, ...updatedErrorFields }));
         });
-      } else if (error.status === 404) {
-        Swal.fire({
-          title: error.data.message,
-          icon: 'error',
-        });
-      } else if (error.status === 400) {
-        updatedErrorFields.password = error.data.message;
-        Swal.fire({
-          title: error.data.message,
-          icon: 'error',
-        });
-        setErrorFields((prev) => ({ ...prev, ...updatedErrorFields }));
-        passwordRef.current.focus();
+        if (error.status === 400) passwordRef.current.focus();
       }
+
+      setErrorFields(updatedErrorFields);
     }
   }, [error]);
 
-  // Focus on the first error field when the form is submitted
   useEffect(() => {
     if (errorFields.email) {
       emailRef.current.focus();
@@ -78,13 +76,13 @@ const LoginForm = ({ isLoginPage }) => {
 
   return (
     <div
-      className={`absolute top-0 h-full transition-all ease-in-out duration-[0.6s] left-0 w-[50%] z-[2] ${
+      className={`absolute top-0 h-full left-0 w-[50%] z-[2] transition-all duration-[0.6s] ${
         !isLoginPage ? 'translate-x-[100%] animate-move' : ''
       }`}
     >
       <FormContainer
         onSubmit={handleSubmit}
-        className={`bg-white flex items-center justify-center flex-col px-10 h-full`}
+        className="bg-white flex items-center justify-center flex-col px-10 h-full"
       >
         <h1 className="text-4xl font-bold uppercase">Login</h1>
         <h2 className="uppercase flex flex-row text-lg mt-3 font-semibold">
@@ -116,8 +114,11 @@ const LoginForm = ({ isLoginPage }) => {
           type="submit"
           id="login"
           name="login"
+          disabled={loading}
         >
-          Login
+          {' '}
+          {/* Disable tombol jika loading aktif */}
+          {loading ? 'Loading...' : 'Login'} {/* Tampilkan teks loading */}
         </Button>
       </FormContainer>
     </div>

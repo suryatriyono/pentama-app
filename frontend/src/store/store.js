@@ -10,7 +10,7 @@ const store = configureStore({
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
-      serializableCheck: false, // Disable serialization check for ease of  configuration
+      serializableCheck: true, // Disable serialization check for ease of  configuration
     }),
   devTools: process.env.NODE_ENV !== 'production', // Activated Redux DevTools in Development mode only
 });

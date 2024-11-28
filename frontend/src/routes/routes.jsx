@@ -1,5 +1,4 @@
-import React, { lazy, Suspense } from 'react';
-import { useSelector } from 'react-redux';
+import { lazy, Suspense } from 'react';
 import {
   Navigate,
   Route,
@@ -16,20 +15,35 @@ const AuthenticationPage = lazy(() =>
 );
 
 const AppRouter = () => {
-  const { isLoading } = useSelector((state) => state.auth);
+  const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+  const role = localStorage.getItem('role');
+
+  // Logic for hendling routes based on user authentication and role
+  const getRedirectPath = () => {
+    if (isAuthenticated) {
+      return `/${role}/dashboard`;
+    }
+    return '/auth';
+  };
+
   return (
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      {isLoading && <LoadingOverlay />}
       <Suspense fallback={<LoadingOverlay />}>
         <Routes>
           {/* Authentication */}
           <Route
             path="/auth"
-            element={<AuthenticationPage />}
+            element={
+              isAuthenticated ? (
+                <Navigate to={getRedirectPath()} />
+              ) : (
+                <AuthenticationPage />
+              )
+            }
           />
 
           {/* Route for Admin */}
-          {routes.admin.map((route) => {
+          {routes.admin.map((route) => (
             <Route
               key={route.path}
               path={`/admin/${route.path}`}
@@ -38,15 +52,15 @@ const AppRouter = () => {
                   <route.component />
                 </ProtectedRoute>
               }
-            />;
-          })}
+            />
+          ))}
 
-          {/* Redirect if not route match */}
+          {/* Hendling unmatch routes */}
           <Route
             path="*"
             element={
               <Navigate
-                to="/auth"
+                to={isAuthenticated ? getRedirectPath() : '/auth'}
                 replace
               />
             }

@@ -9,56 +9,47 @@ const login = async (req, res) => {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
     if (!user) {
-      return errorResponse(
-        res,
-        'There is no user yet, please register now',
-        404
-      );
+      return errorResponse(res, {
+        message: 'There is no user yet, please register now',
+        statusCode: 404,
+      });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return errorResponse(res, 'Password does not match', 400);
+      return errorResponse(res, {
+        message: 'Password does not match',
+        statusCode: 400,
+      });
     }
 
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
 
-    // Set the refresh token in HttpOnly cookie
+    // The required data set in the cookie
     res
+      .cookie('accessToken', accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production', // Aktifkan secure hanya di production dengan HTTPS
+        sameSite: 'Strict',
+        maxAge: 15 * 60 * 1000, // 15 minute
+      })
       .cookie('refreshToken', refreshToken, {
         httpOnly: true,
-        // self: true, // Set to true in production with HTTPS
         secure: process.env.NODE_ENV === 'production', // Aktifkan secure hanya di production dengan HTTPS
         sameSite: 'Strict',
-        maxAge: 7 * 24 * 60 * 1000, // 7 days
-      })
-      .cookie('isAuthenticated', true, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production', // Aktifkan secure hanya di production dengan HTTPS
-        sameSite: 'Strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 hari
-      })
-      .cookie('role', user.role, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production', // Aktifkan secure hanya di production dengan HTTPS
-        sameSite: 'Strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 hari
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
 
-    console.log('login:', req.cookies);
-
-    return successResponse(res, 'Login Successful', {
-      accessToken,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
+    return successResponse(res, {
+      message: 'Login Successful',
+      success: { isAuthenticated: true, role: user.role },
     });
   } catch (error) {
-    return errorResponse(res, 'Authentication failed', 500, error);
+    return errorResponse(res, {
+      message: 'Authentication failed',
+      errors: error,
+    });
   }
 };
 
@@ -68,7 +59,10 @@ const register = async (req, res) => {
     let user = await User.findOne({ email });
 
     if (user) {
-      return errorResponse(res, 'user already exists', 409);
+      return errorResponse(res, {
+        message: 'user already exists',
+        statusCode: 409,
+      });
     }
 
     user = new User({
@@ -79,52 +73,77 @@ const register = async (req, res) => {
     });
 
     await user.save();
-    const accessToken = generateAccessToken(user);
-    return successResponse(res, 'User registered successfully', accessToken);
+    return successResponse(res, { message: 'User registered successfully' });
   } catch (error) {
-    return errorResponse(res, error.message);
+    return errorResponse(res, { message: 'Register failed', errors: error });
   }
 };
 
 const refreshToken = (req, res) => {
   const refreshToken = req.cookies.refreshToken;
-  console.log('refresh token:', req.cookies);
-  if (!refreshToken)
-    return errorResponse(res, 'No refresh token provided', 403);
-
+  // Check the refresh token
+  if (!refreshToken) {
+    return errorResponse(res, {
+      message: 'No refresh token provided',
+      statusCode: 403,
+    });
+  }
+  // Verifying existsting refresh token
   jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, (err, user) => {
     if (err) {
-      return errorResponse(res, 'Invalid refresh token', 403);
+      return errorResponse(res, {
+        message: 'Invalid refresh token',
+        statusCode: 403,
+        errors: err,
+      });
     }
-
+    // Generate a new access token for the user
     const newAccessToken = generateAccessToken(user);
-    return successResponse(res, 'Token refreshed successfully', {
-      accessToken: newAccessToken,
+    // Generate a new refresh token for the user
+    const newRefsehToken = generateRefreshToken(user);
+
+    res
+      .cookie('accessToken', newAccessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'Strict',
+        maxAge: 15 * 60 * 1000, // 15 menit (15 * 60 * 1000 ms)
+      })
+      .cookie('refreshToken', newRefsehToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'Strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+
+    return successResponse(res, {
+      message: 'Token refreshed successfully',
+      success: { isAuthenticated: true, role: req.user.role },
     });
   });
 };
 
 const checkAuthenticated = (req, res) => {
-  const isAuthenticated = req.cookies.isAuthenticated;
-  const role = req.cookies.role;
-
-  console.log('check:', req.cookies);
-
-  if (isAuthenticated) {
-    return successResponse(res, 'User is authenticated', {
-      isAuthenticated,
-      role,
+  if (req.user) {
+    return successResponse(res, {
+      message: 'User is authenticated',
+      success: {
+        isAuthenticated: true,
+        role: req.user.role,
+      },
     });
   } else {
-    return errorResponse(res, 'User is not authenticated', 401);
+    return errorResponse(res, {
+      message: 'User is not authenticated',
+      statusCode: 401,
+    });
   }
 };
 
 const logout = (_, res) => {
+  res.clearCookie('accessToken');
   res.clearCookie('refreshToken');
-  res.clearCookie('role');
-  res.clearCookie('isAuthenticated');
-  return successResponse(res, 'User logged out successfully');
+  return successResponse(res, { message: 'User logged out successfully' });
 };
 
 module.exports = { login, register, refreshToken, checkAuthenticated, logout };

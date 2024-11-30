@@ -1,11 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PiStudentDuotone } from 'react-icons/pi';
-import { registerUser } from '../services/auth.service';
-import Button from './common/Button';
-import FormContainer from './common/FormContainer';
-import InputField from './common/InputField';
-import InputPassword from './common/InputPassword';
-import SelectInput from './common/SelectInput';
+import { registerUser } from '../../services/auth.service';
+import Button from '../common/Button';
+import FormContainer from '../common/FormContainer';
+import InputField from '../common/InputField';
+import InputPassword from '../common/InputPassword';
+import SelectInput from '../common/SelectInput';
 
 const RegisterForm = ({ isLoginPage }) => {
   const [email, setEmail] = useState('');

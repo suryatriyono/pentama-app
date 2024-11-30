@@ -7,7 +7,11 @@ const haddleValidationErrors = (req, res, next) => {
       field: err.path,
       message: err.msg,
     }));
-    return errorResponse(res, 'Validation error', 400, errorsDetails);
+    return errorResponse(res, {
+      message: 'Validation error',
+      statusCode: 400,
+      errors: errorsDetails,
+    });
   }
   next();
 };

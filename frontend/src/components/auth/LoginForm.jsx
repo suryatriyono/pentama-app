@@ -3,11 +3,11 @@ import { PiStudentDuotone } from 'react-icons/pi';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
-import { login } from '../components/features/auth/authSlice';
-import Button from './common/Button';
-import FormContainer from './common/FormContainer';
-import InputField from './common/InputField';
-import InputPassword from './common/InputPassword';
+import Button from '../common/Button';
+import FormContainer from '../common/FormContainer';
+import InputField from '../common/InputField';
+import InputPassword from '../common/InputPassword';
+import { login } from '../features/auth/authSlice';
 
 const LoginForm = ({ isLoginPage, setLoginPage }) => {
   const [email, setEmail] = useState('');
@@ -21,13 +21,13 @@ const LoginForm = ({ isLoginPage, setLoginPage }) => {
   const passwordRef = useRef(null);
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { isAuthenticated, error, loading, role } = useSelector(
+  const { isAuthenticated, role, error, isLoading } = useSelector(
     (state) => state.auth
-  ); // pastikan loading ditarik dari state
+  ); // pastikan isLoading ditarik dari state
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (loading) return; // Menghindari input jika loading sedang aktif
+    if (isLoading) return; // Menghindari input jika isLoading sedang aktif
     setErrorFields({ email: null, password: null }); // reset error state
     dispatch(login({ email, password }));
   };
@@ -59,9 +59,11 @@ const LoginForm = ({ isLoginPage, setLoginPage }) => {
             }
           }
         });
-        if (error.status === 400) passwordRef.current.focus();
+        if (error.status === 400) {
+          updatedErrorFields.password = error.response.message;
+          passwordRef.current.focus();
+        }
       }
-
       setErrorFields(updatedErrorFields);
     }
   }, [error]);
@@ -114,11 +116,11 @@ const LoginForm = ({ isLoginPage, setLoginPage }) => {
           type="submit"
           id="login"
           name="login"
-          disabled={loading}
+          disabled={isLoading}
         >
           {' '}
-          {/* Disable tombol jika loading aktif */}
-          {loading ? 'Loading...' : 'Login'} {/* Tampilkan teks loading */}
+          {/* Disable tombol jika isLoading aktif */}
+          {isLoading ? 'Loading...' : 'Login'} {/* Tampilkan teks isLoading */}
         </Button>
       </FormContainer>
     </div>

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import LoginForm from '../../components/LoginForm';
-import RegisterForm from '../../components/RegisterForm';
-import ToggleAuthentication from '../../components/ToggleAuthentication';
+import { useState } from 'react';
+import LoginForm from '../../components/auth/LoginForm';
+import RegisterForm from '../../components/auth/RegisterForm';
+import ToggleAuthentication from '../../components/auth/ToggleAuthentication';
 
 const AuthenticationPage = () => {
   const [isLoginPage, setIsLoginPage] = useState(true);

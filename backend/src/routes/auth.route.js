@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const validateRegister = require('../middlewares/validateRegister.middleware');
 const validateLogin = require('../middlewares/validateLogin.middleware');
-const auth = require('../middlewares/auth.middleware');
+const authAccess = require('../middlewares/auth.acsess.token');
 const {
   login,
   register,
@@ -16,6 +16,6 @@ router.post('/register', validateRegister, register);
 router.post('/refresh-token', refreshToken);
 router.post('/logout', logout);
 
-router.get('/check-authenticated', auth, checkAuthenticated); // This route should require authentication to access it.
+router.get('/check-authenticated', authAccess, checkAuthenticated); // This route should require authentication to access it.
 
 module.exports = router;

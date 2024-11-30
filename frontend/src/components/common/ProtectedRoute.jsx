@@ -1,43 +1,71 @@
-import { jwtDecode } from 'jwt-decode';
+import { createSelector } from '@reduxjs/toolkit';
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Navigate, useLocation } from 'react-router-dom';
-import { refreshToken } from '../features/auth/authSlice';
+import { getCacheData, setCacheData } from '../../utils/cache';
+import {
+  checkAuth,
+  refreshToken,
+  updateStatus,
+} from '../features/auth/authSlice';
 import LoadingOverlay from './LoadingOverlay';
+
+const selectAuthDetails = createSelector(
+  (state) => state.auth,
+  (auth) => ({
+    isLoading: auth.isLoading,
+    isAuthenticated: auth.isAuthenticated,
+    role: auth.role,
+  })
+);
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const dispatch = useDispatch();
   const location = useLocation();
 
-  const { isLoading } = useSelector((state) => state.auth);
+  const { isLoading, isAuthenticated, role } = useSelector(selectAuthDetails);
 
   const [shouldRedirect, setShouldRedirect] = useState(false);
 
-  const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
-  const accessToken = localStorage.getItem('accessToken');
-  const role = localStorage.getItem('role');
+  const checkAuthSatus = async () => {
+    const cachedAuth = getCacheData('authentication');
 
-  const isTokenValid = () => {
-    if (!accessToken) {
-      return false;
-    }
-    try {
-      const decodeToken = jwtDecode(accessToken);
-      return decodeToken.exp * 1000 > Date.now();
-    } catch (error) {
-      return false;
+    if (cachedAuth) {
+      dispatch(updateStatus(cachedAuth));
+      return cachedAuth;
+    } else {
+      try {
+        const response = await dispatch(checkAuth()).unwrap();
+        const { isAuthenticated, role } = response.success;
+        setCacheData('authentication', { isAuthenticated, role }, 15);
+        dispatch(updateStatus({ isAuthenticated, role }));
+        return { isAuthenticated, role };
+      } catch (error) {
+        try {
+          const response = await dispatch(refreshToken()).unwrap();
+          const { isAuthenticated, role } = response.success;
+          setCacheData('authentication', { isAuthenticated, role }, 15);
+          dispatch(updateStatus({ isAuthenticated, role }));
+          return { isAuthenticated, role };
+        } catch (error) {
+          setShouldRedirect(true);
+          dispatch(updateStatus({ isAuthenticated: false, role: null }));
+          return { isAuthenticated: false, role: null };
+        }
+      }
     }
   };
 
   useEffect(() => {
-    if (!isTokenValid()) {
-      dispatch(refreshToken())
-        .unwrap()
-        .then()
-        .catch(() => {
-          setShouldRedirect(true);
-        });
-    }
+    const checkUserStatus = async () => {
+      await checkAuthSatus();
+    };
+
+    checkUserStatus();
+
+    const intervalId = setInterval(checkUserStatus, 300000); // Set 5 minutes
+
+    return () => clearInterval(intervalId);
   }, [dispatch]);
 
   // If loading, show loading overlay until data is loaded

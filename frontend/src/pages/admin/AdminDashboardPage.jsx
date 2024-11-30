@@ -1,11 +1,7 @@
 import React from 'react';
-import { useDispatch } from 'react-redux';
-
-import { logout } from '../../components/features/auth/authSlice';
 
 const AdminDashboardPage = () => {
-  const dispatch = useDispatch();
-  dispatch(logout());
+  console.log(localStorage);
   return <div>AdminDashboardPage</div>;
 };
 

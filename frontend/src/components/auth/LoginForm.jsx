@@ -38,19 +38,24 @@ const LoginForm = ({ isLoginPage, setLoginPage }) => {
     }
   }, [isAuthenticated, role, navigate]);
 
+  console.log(localStorage);
+
   useEffect(() => {
     if (error) {
       const updatedErrorFields = { email: null, password: null };
       // Memeriksa apakah error ada dan tidak null
-      if (error.response.errors && Array.isArray(error.response.errors)) {
-        error.response.errors.forEach((err) => {
-          if (err.field === 'email') updatedErrorFields.email = err.message;
-          if (err.field === 'password')
+      if (error.data.errors && Array.isArray(error.data.errors)) {
+        error.data.errors.forEach((err) => {
+          if (err.field === 'email') {
+            updatedErrorFields.email = err.message;
+          }
+          if (err.field === 'password') {
             updatedErrorFields.password = err.message;
+          }
         });
       } else if ([404, 400].includes(error.status)) {
         Swal.fire({
-          title: error.response.message,
+          title: error.data.message,
           icon: 'error',
         }).then((result) => {
           if (error.status === 404) {
@@ -60,7 +65,7 @@ const LoginForm = ({ isLoginPage, setLoginPage }) => {
           }
         });
         if (error.status === 400) {
-          updatedErrorFields.password = error.response.message;
+          updatedErrorFields.password = error.data.message;
           passwordRef.current.focus();
         }
       }

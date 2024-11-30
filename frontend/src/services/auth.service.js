@@ -21,6 +21,7 @@ export const registerUser = async (data) => {
     const response = await API.post('/register', data);
     return handleResponseSuccess(response);
   } catch (error) {
+    console.log(error);
     throw handleResponseError(error);
   }
 };
@@ -39,6 +40,7 @@ export const checkAuthenticated = async () => {
     const response = await API.get('/check-authenticated');
     return handleResponseSuccess(response);
   } catch (error) {
+    console.log(error);
     throw handleResponseError(error);
   }
 };
@@ -48,6 +50,7 @@ export const refreshToken = async () => {
     const response = await API.post('/refresh-token');
     return handleResponseSuccess(response);
   } catch (error) {
+    console.log(error);
     throw handleResponseError(error);
   }
 };

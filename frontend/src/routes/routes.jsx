@@ -1,4 +1,6 @@
-import { lazy, Suspense } from 'react';
+import { createSelector } from '@reduxjs/toolkit';
+import { lazy, Suspense, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   Navigate,
   Route,
@@ -8,15 +10,38 @@ import {
 import LoadingOverlay from '../components/common/LoadingOverlay';
 import ProtectedRoute from '../components/common/ProtectedRoute';
 import routes from '../config/roles';
+import { authenticateUser } from '../utils/auth';
 
 // lazy load components
 const AuthenticationPage = lazy(() =>
   import('../pages/auth/AuthenticationPage')
 );
 
+const selectAuthDetails = createSelector(
+  (state) => state.auth,
+  (auth) => ({
+    isLoading: auth.isLoading,
+    isAuthenticated: auth.isAuthenticated,
+    role: auth.role,
+  })
+);
+
 const AppRouter = () => {
-  const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
-  const role = localStorage.getItem('role');
+  const dispatch = useDispatch();
+
+  const { isAuthenticated, role } = useSelector(selectAuthDetails);
+
+  useEffect(() => {
+    const checkUserStatus = async () => {
+      await authenticateUser(dispatch);
+    };
+
+    checkUserStatus();
+
+    const intervalId = setInterval(checkUserStatus, 300000);
+
+    return () => clearInterval(intervalId);
+  }, [dispatch]);
 
   // Logic for hendling routes based on user authentication and role
   const getRedirectPath = () => {

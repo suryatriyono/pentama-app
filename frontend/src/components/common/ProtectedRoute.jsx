@@ -2,14 +2,10 @@ import { createSelector } from '@reduxjs/toolkit';
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Navigate, useLocation } from 'react-router-dom';
-import { getCacheData, setCacheData } from '../../utils/cache';
-import {
-  checkAuth,
-  refreshToken,
-  updateStatus,
-} from '../features/auth/authSlice';
+import { authenticateUser } from '../../utils/auth';
 import LoadingOverlay from './LoadingOverlay';
 
+// Selector for fetching authentication data
 const selectAuthDetails = createSelector(
   (state) => state.auth,
   (auth) => ({
@@ -20,45 +16,19 @@ const selectAuthDetails = createSelector(
 );
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
+  // useDispatch for send action to Redux
   const dispatch = useDispatch();
+  // pull up information about the current route
   const location = useLocation();
 
   const { isLoading, isAuthenticated, role } = useSelector(selectAuthDetails);
 
   const [shouldRedirect, setShouldRedirect] = useState(false);
 
-  const checkAuthSatus = async () => {
-    const cachedAuth = getCacheData('authentication');
-
-    if (cachedAuth) {
-      dispatch(updateStatus(cachedAuth));
-      return cachedAuth;
-    } else {
-      try {
-        const response = await dispatch(checkAuth()).unwrap();
-        const { isAuthenticated, role } = response.success;
-        setCacheData('authentication', { isAuthenticated, role }, 15);
-        dispatch(updateStatus({ isAuthenticated, role }));
-        return { isAuthenticated, role };
-      } catch (error) {
-        try {
-          const response = await dispatch(refreshToken()).unwrap();
-          const { isAuthenticated, role } = response.success;
-          setCacheData('authentication', { isAuthenticated, role }, 15);
-          dispatch(updateStatus({ isAuthenticated, role }));
-          return { isAuthenticated, role };
-        } catch (error) {
-          setShouldRedirect(true);
-          dispatch(updateStatus({ isAuthenticated: false, role: null }));
-          return { isAuthenticated: false, role: null };
-        }
-      }
-    }
-  };
-
   useEffect(() => {
     const checkUserStatus = async () => {
-      await checkAuthSatus();
+      const { isAuthenticated } = await authenticateUser(dispatch);
+      if (!isAuthenticated) setShouldRedirect(true);
     };
 
     checkUserStatus();

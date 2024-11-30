@@ -26,7 +26,7 @@ app.use('/pentama-api', authRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.satuas(500).json({ message: 'Semething went wrong!' });
+  res.status(500).json({ message: 'Semething went wrong!' });
 });
 
 const PORT = process.env.PORT || 5000;

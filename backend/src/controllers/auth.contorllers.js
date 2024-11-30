@@ -81,6 +81,7 @@ const register = async (req, res) => {
 
 const refreshToken = (req, res) => {
   const refreshToken = req.cookies.refreshToken;
+  console.log('RF:', req.cookies);
   // Check the refresh token
   if (!refreshToken) {
     return errorResponse(res, {
@@ -124,6 +125,7 @@ const refreshToken = (req, res) => {
 };
 
 const checkAuthenticated = (req, res) => {
+  console.log('CA:', req.cookies);
   if (req.user) {
     return successResponse(res, {
       message: 'User is authenticated',

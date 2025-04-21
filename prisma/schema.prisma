@@ -1,0 +1,191 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  UNKNOWN
+}
+
+enum Role {
+  STUDENT // Mahasiswa
+  LECTURER // Dosen
+  UNKNOWN
+}
+
+enum Expertise {
+  AES // Applied Enterprise System
+  NIC // Network and Infrastructure Computing
+  UNKNOWN
+}
+
+enum FinalProjectStage {
+  PROPOSAL // Seminar Proposal
+  RESULT // Seminar Hasil
+  FINAL // Sidang
+  COMPLETED // Selesai
+}
+
+enum FinalProjectStatus {
+  DRAFT // Tugas Akhir dalam proses pengajuan awal oleh mahasiswa
+  SUBMITTED // Tugas Akhir telah diajukan (proposal, hasil, atau final)
+  REVIEWED // Tugas Akhir telah dinilai oleh semua penguji
+  PASSED // Tugas Akhir lulus tahapan
+  FAILED // Tugas Akhir tidak lulus tahapan
+  COMPLETED // Tugas Akhir telah selesai semua tahapannya
+}
+
+enum Position {
+  LEKTOR_KEPALA // Jenjang Lektor Kepala
+  PROFESOR // Jenjang Profesor
+  ASISTEN_AHLI // Jenjang Asisten Ahli
+  LEKTOR // Jenjang Lektor
+  UNKNOWN
+}
+
+enum AssessorRole {
+  SUPERVISOR_1 // Pembimbing 1 (Ketua)
+  SUPERVISOR_2 // Pembimbing 2 (Sekretaris)
+  EXAMINER_1 // Penguji 1
+  EXAMINER_2 // Penguji 2
+}
+
+enum AssessmentStatus {
+  DRAFT // Penilaian belum final
+  SUBMITTED // Penilaian telah disubmit
+}
+
+model User {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  username  String    @unique // NIM or NIM
+  password  String
+  role      Role
+  name      String?
+  gender    Gender    @default(UNKNOWN)
+  isAdmin   Boolean   @default(false)
+  avatarUrl String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  // Relasi berdasarkan peran
+  student   Student?
+  lecturer  Lecturer?
+}
+
+model Student {
+  id             String        @id @default(auto()) @map("_id") @db.ObjectId
+  faculty        String // Fakultas
+  educationLevel String // Tingkat Pendidikan
+  studyProgram   String // Program studi
+  batch          String // Tahun angkatan
+  researchField  Expertise     @default(UNKNOWN) // Bidang penelitian
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  // Relasi dengan User (student)
+  user           User          @relation(fields: [userId], references: [id])
+  userId         String        @unique @db.ObjectId
+  // Relasi dengan FinalProject
+  finalProject   FinalProject?
+}
+
+model Lecturer {
+  id               String       @id @default(auto()) @map("_id") @db.ObjectId
+  position         Position     @default(UNKNOWN) // Jabatan
+  expertise        Expertise    @default(UNKNOWN) //  Keahlian (AES/NIC)
+  // Ketentuan beban kerja dosen
+  supervisingCount Int          @default(0) // Peran sebagai pembimbing
+  examiningCount   Int          @default(0) // Peran sebagai penguji
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  // Relasi dengan User (lecturer)
+  user             User         @relation(fields: [userId], references: [id])
+  userId           String       @unique @db.ObjectId
+  // Relasi dengan Assessment (penilaian yang dilakukan)
+  assessments      Assessment[]
+  // Relasi dengan Assessor (tim penguji)
+  assessorRoles    Assessor[]
+}
+
+model FinalProject {
+  id               String             @id @default(auto()) @map("_id") @db.ObjectId
+  title            String
+  researchField    Expertise
+  stage            FinalProjectStage  @default(PROPOSAL)
+  status           FinalProjectStatus @default(DRAFT)
+  attemptCount     Int                @default(0) // Jumlah percobaan
+  // Dokumen untuk setiap tahap
+  proposalDocument String? // Path dokumen proposal
+  resultDocument   String? // Path dokumen hasil
+  sessionDocument  String? // Path dokumen sidang
+  // Nilai akhir setelah perhitungan
+  finalGrade       Float?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  // Relasi dengan Student (pemilik final project)
+  student          Student            @relation(fields: [studentId], references: [id])
+  studentId        String             @unique @db.ObjectId
+  // Relasi dengan Assessor (tim penguji)
+  assessors        Assessor[]
+  // Relasi dengan Schedule (jadwal seminar/sidang)
+  schedules        Schedule[]
+  //Relasi dengan Assessment (penilaian)
+  assessments      Assessment[]
+}
+
+model Assessor {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  role           AssessorRole
+  // Relasi dengan Lecturer (dosen yang menjadi assessor)
+  lecturer       Lecturer     @relation(fields: [lecturerId], references: [id])
+  lecturerId     String       @db.ObjectId
+  // Relasi dengan FinalProject
+  finalProject   FinalProject @relation(fields: [finalProjectId], references: [id])
+  finalProjectId String       @db.ObjectId
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Assessment {
+  id             String            @id @default(auto()) @map("_id") @db.ObjectId
+  stage          FinalProjectStage
+  score          Float?
+  notes          String?
+  status         AssessmentStatus  @default(DRAFT)
+  // Relasi dengan Lecturer (penilai)
+  lecturer       Lecturer          @relation(fields: [lecturerId], references: [id])
+  lecturerId     String            @db.ObjectId
+  // Relasi dengan FinalProject
+  finalProject   FinalProject      @relation(fields: [finalProjectId], references: [id])
+  finalProjectId String            @db.ObjectId
+  // Peran assessor saat menilai
+  assessorRole   AssessorRole
+  submittedAt    DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}
+
+model Schedule {
+  id             String            @id @default(auto()) @map("_id") @db.ObjectId
+  stage          FinalProjectStage
+  scheduledDate  DateTime
+  room           String
+  // Relasi dengan FinalProject
+  finalProject   FinalProject      @relation(fields: [finalProjectId], references: [id])
+  finalProjectId String            @db.ObjectId
+  // Status jadwal (dapat dimodifikasi selama 3 hari)
+  isLocked       Boolean           @default(false)
+  lockDate       DateTime? // Tanggal ketika jadwal terkunci
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}

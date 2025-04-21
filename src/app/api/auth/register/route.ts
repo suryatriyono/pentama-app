@@ -8,6 +8,21 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const { userData, studentData, lecturerData } = await processRegistrationData(formData);
 
+    const user = await prisma.user.findUnique({
+      where: {
+        username: userData.username
+      }
+    });
+
+    if (user) {
+      return NextResponse.json(
+        createErrorResponse({
+          errorType: ErrorType.USER_EXISTS,
+        }),
+        { status: 400 }
+      );
+    }
+
     // Create user and associated data in database transactions
     const newUser = await prisma.$transaction(async (tx) => {
       // Create user
@@ -44,7 +59,7 @@ export async function POST(request: NextRequest) {
         username: newUser.username,
         role: newUser.role
       }
-    }), {status: 201});
+    }), { status: 201 });
 
   } catch (error) {
     return NextResponse.json(createErrorResponse({
